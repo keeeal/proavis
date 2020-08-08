@@ -55,6 +55,7 @@ def evaluate(individual):
             with open(bot_deathlog, 'a+') as f:
                 f.write(deathlog_line)
 
+            # update individual and fitness
             individual = individual[:i]
             score = int(hiscores_line.split(',')[1])
             dist = int(deathlog_line.split(',')[3])
