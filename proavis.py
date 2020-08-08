@@ -149,6 +149,6 @@ if __name__ == '__main__':
     parser.add_argument('--p-mutate', '-pm', type=float, default=.2)
     parser.add_argument('--p-flip', '-pf', type=float, default=.1)
     parser.add_argument('--n-pop', '-n', type=int, default=64)
-    parser.add_argument('--n-gen', '-g', type=float, default=.5)
+    parser.add_argument('--n-gen', '-g', type=int, default=1000)
     parser.add_argument('--init-pop', '-init')
     main(**vars(parser.parse_args()))
