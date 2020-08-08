@@ -1,24 +1,15 @@
 
-
 import os, time, json
-from itertools import count, repeat
-from collections.abc import Sequence
+from itertools import count
 from random import random as rand
 from random import randint
 
-import numpy as np
 import pyautogui as gui
 from deap import base, creator, tools, algorithms
-
 
 retry_pos = 1160, 780  # location of the retry button
 click_pos = 1240, 780  # somewhere else inside the game window
 click_delay = 0.01     # delay added between actions
-p_cross = 0.5          # probability of crossover
-p_mutate = 0.2         # probability of individual mutation
-p_flip = 0.1           # probability of attribute mutation
-pop_size = 32          # number of individuals
-n_gen = 1000           # max number of generations
 
 # path to where the game stores high scores and death logs
 root = '/home/j/.wine/drive_c/users/j/Local Settings/Application Data/Chicken_Wings_2020_test_ver_easy/'
@@ -47,7 +38,7 @@ def evaluate(individual):
         gui.mouseUp()
         time.sleep(.01)
 
-    gui.moveTo(*click_pos, duration=.1)
+    gui.moveTo(*click_pos)
 
     for i in count():
         with open(hiscores) as f:
@@ -81,7 +72,7 @@ def evaluate(individual):
         time.sleep(click_delay)
 
 
-# mutate the attributes starting from a randomly chosen point
+# mutate attributes starting from a randomly chosen point
 def mutUniformIntAfterPt(individual, low, up, indpb):
     size = len(individual)
     start = randint(0, size - 1)
@@ -93,21 +84,23 @@ def mutUniformIntAfterPt(individual, low, up, indpb):
     return individual,
 
 
-# saves the population to disk and prints stats
+# save the population and print statistics
 class Results:
     def __init__(self, save_dir):
         self.save_dir = save_dir
         self.gen = 0
 
     def update(self, population):
+        fitness = [i.fitness.values for i in population]
+        scores, dists = list(zip(*fitness))
+
+        # save population and fitness
         save_file = '{}.json'.format(self.gen)
         save_file = os.path.join(self.save_dir, save_file)
         with open(save_file, 'w') as f:
-            json.dump(population, f)
+            json.dump({'population': population, 'fitness': fitness}, f)
 
-        scores = [i.fitness.values[0] for i in population]
-        dists = [i.fitness.values[1] for i in population]
-
+        # print statistics
         print('== GEN {} =='.format(self.gen))
         print('max score:\t{}'.format(int(max(scores))))
         print('avg score:\t{}'.format(int(sum(scores)/len(scores))))
@@ -116,16 +109,16 @@ class Results:
         self.gen += 1
 
 
-def main():
+def main(p_cross, p_mutate, p_flip, n_pop, n_gen, init_pop):
 
-    # define bigger score as better fitness
+    # define fitness
     creator.create('Fitness', base.Fitness, weights=(1., 1.))
     creator.create('Individual', list, fitness=creator.Fitness)
 
     # register an individual and a population
     t = base.Toolbox()
-    t.register('individual', tools.initRepeat, creator.Individual, None, n=0)
-    t.register('population', tools.initRepeat, list, t.individual, n=pop_size)
+    t.register('individual', tools.initRepeat, creator.Individual, 0, n=0)
+    t.register('population', tools.initRepeat, list, t.individual, n=n_pop)
 
     # register evolutionary operators
     t.register("mate", tools.cxOnePoint)
@@ -142,11 +135,20 @@ def main():
 
     # initialise the algorithm
     alg = algorithms.eaSimple
-    pop = t.population()
+    if not init_pop:
+        init_pop = t.population()
 
     # begin training
-    alg(pop, t, p_cross, p_mutate, n_gen, None, res, False)
+    alg(init_pop, t, p_cross, p_mutate, n_gen, None, res, False)
 
 
 if __name__ == '__main__':
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--p-cross', '-px', type=float, default=.5)
+    parser.add_argument('--p-mutate', '-pm', type=float, default=.2)
+    parser.add_argument('--p-flip', '-pf', type=float, default=.1)
+    parser.add_argument('--n-pop', '-n', type=int, default=64)
+    parser.add_argument('--n-gen', '-g', type=float, default=.5)
+    parser.add_argument('--init-pop', '-init')
+    main(**vars(parser.parse_args()))
