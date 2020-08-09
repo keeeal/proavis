@@ -1,8 +1,7 @@
 
 import os, time, json
 from itertools import count
-from random import random, randint
-from math import log
+from random import random, randint, choices
 
 import pyautogui as gui
 from deap import base, creator, tools, algorithms
@@ -76,15 +75,16 @@ def evaluate(individual):
 # crossover at a random point biased towards the end
 def cxOnePointBiased(ind1, ind2, bias=1.02):
     n = min(len(ind1), len(ind2))
-    p = int(log(random()*(bias**n - 1) + 1, bias))
+    p = choices(range(n), map(lambda x: bias**(x-n), range(n)))[0]
     ind1[p:], ind2[p:] = ind2[p:], ind1[p:]
+
     return ind1, ind2
 
 
 # mutate attributes randomly with a bias towards the end
 def mutUniformIntBiased(ind, low, up, indpb, bias=1.02):
     n = len(ind)
-    p = int(log(random()*(bias**n - 1) + 1, bias))
+    p = choices(range(n), map(lambda x: bias**(x-n), range(n)))[0]
     for i in range(p, n):
         if random() < indpb:
             ind[i] = randint(low, up)
