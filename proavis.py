@@ -76,24 +76,21 @@ def evaluate(individual):
 # cross individuals at a point biased towards the end
 def cxOnePointBiased(ind1, ind2, bias=1.01):
     n = min(len(ind1), len(ind2))
-    f = lambda x: log((1 - x)*(bias**-n) + x, bias) + n
-    p = int(f(random()))
+    x = lambda y: log(y*(bias**n - 1) + 1, bias)
+    p = int(x(random()))
     ind1[p:], ind2[p:] = ind2[p:], ind1[p:]
     return ind1, ind2
 
 
 # mutate attributes in a range biased towards the end
-def mutUniformIntBiased(individual, low, up, indpb, bias=1.01):
-    n = len(individual)
-    f = lambda x: log((1 - x)*(bias**-n) + x, bias) + n
-    a, b = random(), random()
-    a, b = int(f(a)), min(int(f(a + b)), n)
+def mutUniformIntBiased(ind, low, up, indpb, bias=1.01):
+    n = len(ind)
+    y = lambda x: (bias**x - 1)/(bias**n - 1)
+    for i in range(n):
+        if random() < indpb*y(i):
+            ind[i] = randint(low, up)
 
-    for i in range(a, b):
-        if random() < indpb:
-            individual[i] = randint(low, up)
-
-    return individual,
+    return ind,
 
 
 # save the population and print statistics
