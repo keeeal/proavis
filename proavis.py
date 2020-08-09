@@ -73,8 +73,8 @@ def evaluate(individual):
         time.sleep(click_delay)
 
 
-# cross individuals at a point biased towards the end
-def cxOnePointBiased(ind1, ind2, bias=1.01):
+# crossover at a random point biased towards the end
+def cxOnePointBiased(ind1, ind2, bias=1.02):
     n = min(len(ind1), len(ind2))
     x = lambda y: log(y*(bias**n - 1) + 1, bias)
     p = int(x(random()))
@@ -82,8 +82,8 @@ def cxOnePointBiased(ind1, ind2, bias=1.01):
     return ind1, ind2
 
 
-# mutate attributes in a range biased towards the end
-def mutUniformIntBiased(ind, low, up, indpb, bias=1.01):
+# mutate attributes randomly with a bias towards the end
+def mutUniformIntBiased(ind, low, up, indpb, bias=1.02):
     n = len(ind)
     y = lambda x: (bias**x - 1)/(bias**n - 1)
     for i in range(n):
@@ -143,12 +143,15 @@ def main(p_cross, p_mutate, p_flip, n_pop, n_gen, init_pop):
     res = Results(results_dir)
 
     # initialise the algorithm
-    alg = algorithms.eaSimple
-    if not init_pop:
+    ea = algorithms.eaSimple
+    if init_pop:
+        with open(init_pop) as f:
+            init_pop = json.load(f)['population']
+    else:
         init_pop = t.population()
 
     # begin training
-    alg(init_pop, t, p_cross, p_mutate, n_gen, None, res, False)
+    ea(init_pop, t, p_cross, p_mutate, n_gen, None, res, False)
 
 
 if __name__ == '__main__':
