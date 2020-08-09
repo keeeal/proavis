@@ -1,8 +1,8 @@
 
 import os, time, json
 from itertools import count
-from random import random as rand
-from random import randint
+from random import random, randint
+from math import log
 
 import pyautogui as gui
 from deap import base, creator, tools, algorithms
@@ -73,13 +73,24 @@ def evaluate(individual):
         time.sleep(click_delay)
 
 
-# mutate attributes starting from a randomly chosen point
-def mutUniformIntAfterPt(individual, low, up, indpb):
-    size = len(individual)
-    start = randint(0, size - 1)
+# cross individuals at a point biased towards the end
+def cxOnePointBiased(ind1, ind2, bias=1.01):
+    n = min(len(ind1), len(ind2))
+    f = lambda x: log((1 - x)*(bias**-n) + x, bias) + n
+    p = int(f(random()))
+    ind1[p:], ind2[p:] = ind2[p:], ind1[p:]
+    return ind1, ind2
 
-    for i in range(start, size):
-        if rand() < indpb:
+
+# mutate attributes in a range biased towards the end
+def mutUniformIntBiased(individual, low, up, indpb, bias=1.01):
+    n = len(individual)
+    f = lambda x: log((1 - x)*(bias**-n) + x, bias) + n
+    a, b = random(), random()
+    a, b = int(f(a)), int(f(a + b))
+
+    for i in range(a, b):
+        if random() < indpb:
             individual[i] = randint(low, up)
 
     return individual,
@@ -122,8 +133,8 @@ def main(p_cross, p_mutate, p_flip, n_pop, n_gen, init_pop):
     t.register('population', tools.initRepeat, list, t.individual, n=n_pop)
 
     # register evolutionary operators
-    t.register("mate", tools.cxOnePoint)
-    t.register("mutate", mutUniformIntAfterPt, low=-1, up=1, indpb=p_flip)
+    t.register("mate", cxOnePointBiased)
+    t.register("mutate", mutUniformIntBiased, low=-1, up=1, indpb=p_flip)
     t.register("select", tools.selTournament, tournsize=3)
     t.register("evaluate", evaluate)
 
@@ -148,7 +159,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--p-cross', '-px', type=float, default=.5)
     parser.add_argument('--p-mutate', '-pm', type=float, default=.2)
-    parser.add_argument('--p-flip', '-pf', type=float, default=.1)
+    parser.add_argument('--p-flip', '-pf', type=float, default=.3)
     parser.add_argument('--n-pop', '-n', type=int, default=64)
     parser.add_argument('--n-gen', '-g', type=int, default=1000)
     parser.add_argument('--init-pop', '-init')
