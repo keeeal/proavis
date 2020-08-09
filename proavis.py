@@ -87,7 +87,7 @@ def mutUniformIntBiased(individual, low, up, indpb, bias=1.01):
     n = len(individual)
     f = lambda x: log((1 - x)*(bias**-n) + x, bias) + n
     a, b = random(), random()
-    a, b = int(f(a)), int(f(a + b))
+    a, b = int(f(a)), min(int(f(a + b)), n)
 
     for i in range(a, b):
         if random() < indpb:
