@@ -145,7 +145,15 @@ def main(p_cross, p_mutate, p_flip, n_pop, n_gen, init_pop):
     ea = algorithms.eaSimple
     if init_pop:
         with open(init_pop) as f:
-            init_pop = json.load(f)['population']
+            data, init_pop = json.load(f), []
+            gen = int(os.path.splitext(f)[0])
+            res.gen = gen
+            n_gen -= gen
+
+            for i, fit in zip(data['population'], data['fitness']):
+                init_pop.append(creator.Individual(i))
+                init_pop[-1].fitness.values = fit
+                init_pop[-1].fitness.valid = True
     else:
         init_pop = t.population()
 
