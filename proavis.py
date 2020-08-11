@@ -6,6 +6,8 @@ from random import random, randint, choices
 import pyautogui as gui
 from deap import base, creator, tools, algorithms
 
+from utils import io
+
 retry_pos = 1160, 780  # location of the retry button
 click_pos = 1240, 780  # somewhere else inside the game window
 click_delay = 0.01     # delay added between actions
@@ -92,6 +94,19 @@ def mutUniformIntBiased(ind, low, up, indpb, bias=1.02):
     return ind,
 
 
+# print the fitness statistics of a population
+def print_stats(population, generation=None):
+    fitnesses = [i.fitness.values for i in population]
+    scores, dists = list(zip(*fitnesses))
+
+    if generation is not None:
+        print('== GEN {} =='.format(generation))
+    print('max score:\t{}'.format(int(max(scores))))
+    print('avg score:\t{}'.format(int(sum(scores)/len(scores))))
+    print('max dist:\t{}'.format(int(max(dists))))
+    print('avg dist:\t{}'.format(int(sum(dists)/len(dists))))
+
+
 # save the population and print statistics
 class Results:
     def __init__(self, save_dir):
@@ -99,25 +114,12 @@ class Results:
         self.gen = 0
 
     def update(self, population):
-        fitness = [i.fitness.values for i in population]
-        scores, dists = list(zip(*fitness))
-
-        # save population and fitness
-        save_file = '{}.json'.format(self.gen)
-        save_file = os.path.join(self.save_dir, save_file)
-        with open(save_file, 'w') as f:
-            json.dump({'population': population, 'fitness': fitness}, f)
-
-        # print statistics
-        print('== GEN {} =='.format(self.gen))
-        print('max score:\t{}'.format(int(max(scores))))
-        print('avg score:\t{}'.format(int(sum(scores)/len(scores))))
-        print('max dist:\t{}'.format(int(max(dists))))
-        print('avg dist:\t{}'.format(int(sum(dists)/len(dists))))
+        io.save(self.save_dir, population, self.gen)
+        print_stats(population, self.gen)
         self.gen += 1
 
 
-def main(p_cross, p_mutate, p_flip, n_pop, n_gen, init_pop):
+def main(p_cross, p_mutate, p_flip, n_pop, n_gen, load_dir=None):
 
     # define fitness
     creator.create('Fitness', base.Fitness, weights=(1., 1.))
@@ -142,18 +144,12 @@ def main(p_cross, p_mutate, p_flip, n_pop, n_gen, init_pop):
     res = Results(results_dir)
 
     # initialise the algorithm
-    ea = algorithms.eaSimple
-    if init_pop:
-        with open(init_pop) as f:
-            data, init_pop = json.load(f), []
-            gen = int(os.path.splitext(f)[0])
-            res.gen = gen
-            n_gen -= gen
-
-            for i, fit in zip(data['population'], data['fitness']):
-                init_pop.append(creator.Individual(i))
-                init_pop[-1].fitness.values = fit
-                init_pop[-1].fitness.valid = True
+    ea = algorithms.eaMuPlusLambda
+    if load_dir:
+        history = io.load_dir(load_dir, creator.Individual)
+        res.gen, init_pop = history[-1]
+        for gen, pop in history:
+            print_stats(pop, gen)
     else:
         init_pop = t.population()
 
@@ -169,5 +165,5 @@ if __name__ == '__main__':
     parser.add_argument('--p-flip', '-pf', type=float, default=.1)
     parser.add_argument('--n-pop', '-n', type=int, default=64)
     parser.add_argument('--n-gen', '-g', type=int, default=1000)
-    parser.add_argument('--init-pop', '-init')
+    parser.add_argument('--load_dir', '-load')
     main(**vars(parser.parse_args()))

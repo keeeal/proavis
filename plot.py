@@ -4,17 +4,13 @@ import os, json
 import pandas as pd
 import seaborn as sns
 
-def main():
+from utils import io
 
-    root, pops = 'results', {}
-    for item in os.listdir(root):
-        if item.endswith('.json'):
-            with open(os.path.join(root, item)) as f:
-                pops[int(os.path.splitext(item)[0])] = json.load(f)
-
+def main(load_dir):
+    pops = io.load_dir(load_dir)
     data = {'gen':[], 'score':[], 'distance':[]}
-    for gen, pop in pops.items():
-        for fit in pop['fitness']:
+    for gen, (pop, fit) in pops:
+        for i, f in zip(pop, fit):
             data['gen'].append(gen)
             data['score'].append(fit[0])
             data['distance'].append(fit[1])
@@ -25,4 +21,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--load_dir', '-load', default='results')
+    main(**vars(parser.parse_args()))
