@@ -1,30 +1,25 @@
 
-import os, time, json
+import os, time
 from itertools import count
+from functools import partial
 from random import random, randint, choices
+from threading import Thread
+from subprocess import call
 
 import pyautogui as gui
 from deap import base, creator, tools, algorithms
 
-from utils import io
+from utils.io import save, load_all
 
-retry_pos = 1160, 780  # location of the retry button
-click_pos = 1240, 780  # somewhere else inside the game window
-click_delay = 0.01     # delay added between actions
 
-# path to where the game stores high scores and death logs
-root = '/home/j/.wine/drive_c/users/j/Local Settings/Application Data/Chicken_Wings_2020_test_ver_easy/'
-hiscores = os.path.join(root, 'hiscores.txt')
-deathlog = os.path.join(root, 'deathlog.txt')
-
-# path to where results will be stored
-results_dir = 'results'
-bot_hiscores = os.path.join(results_dir, 'bot_hiscores.txt')
-bot_deathlog = os.path.join(results_dir, 'bot_deathlog.txt')
+# start the game
+def start_game(exe_path):
+    call(['wine', exe_path])
 
 
 # evaluate an individual by playing the game once
-def evaluate(individual):
+def evaluate(individual, click_delay, click_pos, retry_pos,
+             hiscores, deathlog, bot_hiscores, bot_deathlog):
 
     # clear the game files and get ready
     open(hiscores, 'w').close()
@@ -75,18 +70,18 @@ def evaluate(individual):
 
 
 # crossover at a random point biased towards the end
-def cxOnePointBiased(ind1, ind2, bias=1.02):
+def cxOnePointBiased(ind1, ind2, bias):
     n = min(len(ind1), len(ind2))
-    p = choices(range(n), map(lambda x: bias**(x-n), range(n)))[0]
+    p = choices(range(n), map(lambda x: (1-bias)**(n-x), range(n)))[0]
     ind1[p:], ind2[p:] = ind2[p:], ind1[p:]
 
     return ind1, ind2
 
 
 # mutate attributes randomly with a bias towards the end
-def mutUniformIntBiased(ind, low, up, indpb, bias=1.02):
+def mutUniformIntBiased(ind, low, up, indpb, bias):
     n = len(ind)
-    p = choices(range(n), map(lambda x: bias**(x-n), range(n)))[0]
+    p = choices(range(n), map(lambda x: (1-bias)**(n-x), range(n)))[0]
     for i in range(p, n):
         if random() < indpb:
             ind[i] = randint(low, up)
@@ -119,7 +114,23 @@ class Results:
         self.gen += 1
 
 
-def main(p_cross, p_mutate, p_flip, n_pop, n_gen, load_dir=None):
+def main(difficulty, p_cross, p_mutate, p_flip, bias,
+         n_pop, n_gen, load_dir=None):
+
+    retry_pos = 3080, 780  # location of the retry button
+    click_pos = 3160, 780  # somewhere else inside the game window
+    click_delay = 0.01     # delay added between actions
+
+    # path to where the game stores high scores and death logs
+    root = '/home/j/.wine/drive_c/users/j/Local Settings/Application Data/'
+    root += 'Chicken_Wings_2020_test_ver_{}/'.format(difficulty)
+    hiscores = os.path.join(root, 'hiscores.txt')
+    deathlog = os.path.join(root, 'deathlog.txt')
+
+    # path to where results will be stored
+    results_dir = 'results'
+    bot_hiscores = os.path.join(results_dir, 'bot_hiscores.txt')
+    bot_deathlog = os.path.join(results_dir, 'bot_deathlog.txt')
 
     # define fitness
     creator.create('Fitness', base.Fitness, weights=(1., 1.))
@@ -131,10 +142,15 @@ def main(p_cross, p_mutate, p_flip, n_pop, n_gen, load_dir=None):
     t.register('population', tools.initRepeat, list, t.individual, n=n_pop)
 
     # register evolutionary operators
-    t.register("mate", cxOnePointBiased)
-    t.register("mutate", mutUniformIntBiased, low=-1, up=1, indpb=p_flip)
+    t.register("mate", cxOnePointBiased, bias=bias)
+    t.register("mutate", mutUniformIntBiased,
+        low=-1, up=1, indpb=p_flip, bias=bias)
     t.register("select", tools.selTournament, tournsize=3)
-    t.register("evaluate", evaluate)
+    t.register("evaluate",
+        partial(evaluate, click_delay=click_delay, click_pos=click_pos,
+            retry_pos=retry_pos, hiscores=hiscores, deathlog=deathlog,
+            bot_hiscores=bot_hiscores, bot_deathlog=bot_deathlog)
+    )
 
     # create folder to save results
     if not os.path.isdir(results_dir):
@@ -146,12 +162,18 @@ def main(p_cross, p_mutate, p_flip, n_pop, n_gen, load_dir=None):
     # initialise the algorithm
     ea = algorithms.eaMuPlusLambda
     if load_dir:
-        history = io.load_dir(load_dir, creator.Individual)
+        history = load_all(load_dir, creator.Individual)
         res.gen, init_pop = history[-1]
         for gen, pop in history:
             print_stats(pop, gen)
     else:
         init_pop = t.population()
+
+    # start the game
+    exe_path = os.path.join('/home/j/chicken_wings/{}.exe'.format(difficulty))
+    game = Thread(target=start_game, args=(exe_path,), daemon=True)
+    game.start()
+    time.sleep(10)
 
     # begin training
     ea(init_pop, t, p_cross, p_mutate, n_gen, None, res, False)
@@ -160,9 +182,12 @@ def main(p_cross, p_mutate, p_flip, n_pop, n_gen, load_dir=None):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument('--difficulty', '-d',
+        choices=['easy', 'medium', 'hard'], default='easy')
     parser.add_argument('--p-cross', '-px', type=float, default=.5)
     parser.add_argument('--p-mutate', '-pm', type=float, default=.2)
     parser.add_argument('--p-flip', '-pf', type=float, default=.1)
+    parser.add_argument('--bias', '-b', type=float, default=.03)
     parser.add_argument('--n-pop', '-n', type=int, default=64)
     parser.add_argument('--n-gen', '-g', type=int, default=1000)
     parser.add_argument('--load_dir', '-load')

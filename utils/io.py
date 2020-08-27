@@ -24,7 +24,7 @@ def load(root, gen=0, ind_class=None):
 
     return list(zip(pop, fit))
 
-def load_dir(root, ind_class=None):
+def load_all(root, ind_class=None):
     past_gens = []
     for item in os.listdir(root):
         if item.endswith('.json'):
