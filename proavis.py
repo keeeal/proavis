@@ -109,7 +109,7 @@ class Results:
         self.gen = 0
 
     def update(self, population):
-        io.save(self.save_dir, population, self.gen)
+        save(self.save_dir, population, self.gen)
         print_stats(population, self.gen)
         self.gen += 1
 
@@ -176,7 +176,7 @@ def main(difficulty, p_cross, p_mutate, p_flip, bias,
     time.sleep(10)
 
     # begin training
-    ea(init_pop, t, p_cross, p_mutate, n_gen, None, res, False)
+    ea(init_pop, t, n_gen, n_gen, p_cross, p_mutate, n_gen, None, res, False)
 
 
 if __name__ == '__main__':
