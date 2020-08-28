@@ -160,7 +160,6 @@ def main(difficulty, p_cross, p_mutate, p_flip, bias,
     res = Results(results_dir)
 
     # initialise the algorithm
-    ea = algorithms.eaMuPlusLambda
     if load_dir:
         history = load_all(load_dir, creator.Individual)
         res.gen, init_pop = history[-1]
@@ -176,6 +175,7 @@ def main(difficulty, p_cross, p_mutate, p_flip, bias,
     time.sleep(10)
 
     # begin training
+    ea = algorithms.eaMuPlusLambda
     ea(init_pop, t, n_gen, n_gen, p_cross, p_mutate, n_gen, None, res, False)
 
 
@@ -187,7 +187,7 @@ if __name__ == '__main__':
     parser.add_argument('--p-cross', '-px', type=float, default=.5)
     parser.add_argument('--p-mutate', '-pm', type=float, default=.2)
     parser.add_argument('--p-flip', '-pf', type=float, default=.1)
-    parser.add_argument('--bias', '-b', type=float, default=.03)
+    parser.add_argument('--bias', '-b', type=float, default=.05)
     parser.add_argument('--n-pop', '-n', type=int, default=64)
     parser.add_argument('--n-gen', '-g', type=int, default=1000)
     parser.add_argument('--load_dir', '-load')
