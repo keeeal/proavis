@@ -5,6 +5,7 @@ from functools import partial
 from random import random, randint, choices
 from threading import Thread
 from subprocess import call
+from pathlib import Path
 
 import pyautogui as gui
 from deap import base, creator, tools, algorithms
@@ -12,8 +13,8 @@ from deap import base, creator, tools, algorithms
 from utils.io import save, load_all
 
 
-# start the game
-def start_game(exe_path):
+# start the game with wine
+def wine(exe_path):
     call(['wine', exe_path])
 
 
@@ -115,15 +116,24 @@ class Results:
 
 
 def main(difficulty, p_cross, p_mutate, p_flip, bias,
-         n_pop, n_gen, load_dir=None):
+         n_pop, n_gen, load_dir=None, start_game=False):
 
-    retry_pos = 3080, 780  # location of the retry button
-    click_pos = 3160, 780  # somewhere else inside the game window
-    click_delay = 0.01     # delay added between actions
+    # combined resolution of all monitors
+    # screen_res = 3*1920, 1080
+    screen_res = 2560, 1440
+
+    # location of the retry button
+    retry_pos = screen_res[0]/2 + 200, screen_res[1]/2 + 240
+
+    # somewhere else inside the game window
+    click_pos = screen_res[0]/2 + 280, screen_res[1]/2 + 240
+
+    # delay added between actions
+    click_delay = 0.01
 
     # path to where the game stores high scores and death logs
-    root = '/home/j/.wine/drive_c/users/j/Local Settings/Application Data/'
-    root += 'Chicken_Wings_2020_test_ver_{}/'.format(difficulty)
+    root = Path('/home/j/.wine/drive_c/users/j/Local Settings/Application Data/')
+    root = os.path.join(root, 'Chicken_Wings_2020_test_ver_{}'.format(difficulty))
     hiscores = os.path.join(root, 'hiscores.txt')
     deathlog = os.path.join(root, 'deathlog.txt')
 
@@ -169,10 +179,11 @@ def main(difficulty, p_cross, p_mutate, p_flip, bias,
         init_pop = t.population()
 
     # start the game
-    exe_path = os.path.join('/home/j/chicken_wings/{}.exe'.format(difficulty))
-    game = Thread(target=start_game, args=(exe_path,), daemon=True)
-    game.start()
-    time.sleep(10)
+    if start_game:
+        exe_path = Path('/home/j/chicken_wings/{}.exe'.format(difficulty))
+        game = Thread(target=wine, args=(exe_path,), daemon=True)
+        game.start()
+        time.sleep(10)
 
     # begin training
     ea = algorithms.eaMuPlusLambda
@@ -190,5 +201,6 @@ if __name__ == '__main__':
     parser.add_argument('--bias', '-b', type=float, default=.05)
     parser.add_argument('--n-pop', '-n', type=int, default=64)
     parser.add_argument('--n-gen', '-g', type=int, default=1000)
-    parser.add_argument('--load_dir', '-load')
+    parser.add_argument('--load-dir', '-load')
+    parser.add_argument('--start-game', '-s', action='store_true')
     main(**vars(parser.parse_args()))
